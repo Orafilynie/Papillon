@@ -32,6 +32,7 @@ module.exports = {
             CFBundleURLSchemes: ["papillon", "skoapp-prod"],
           },
         ],
+        CADisableMinimumFrameDurationOnPhone: true,
       },
       supportsTablet: true,
       config: {
@@ -62,6 +63,7 @@ module.exports = {
     plugins: [
       "expo-router",
       "expo-font",
+      "expo-video",
       "expo-localization",
       [
         "expo-image-picker",
@@ -100,6 +102,9 @@ module.exports = {
       [
         "expo-build-properties",
         {
+          android: {
+            enable16KbPageSizes: true,
+          },
           ios: {
             extraPods: [
               { name: "SDWebImage", modular_headers: true },
