@@ -104,33 +104,38 @@ const WallpaperModal = () => {
       if (result.canceled) return;
 
       const file = result.assets[0];
-
+      
       const sourceFile = new File(file.uri);
 
       const newId = `custom:${Date.now()}`;
       const newFileName = `${newId}.jpg`;
+      
+      const tempFileName = file.uri.split('/').pop(); 
+      if (!tempFileName) throw new Error("Cannot fetch the file name");
 
-      sourceFile.copy(wallpaperDirectory);
-
-      const tempFileName = file.uri.split('/').pop();
+      await sourceFile.copy(wallpaperDirectory);
 
       const copiedFile = new File(wallpaperDirectory, tempFileName);
 
       if (copiedFile.exists) {
-        copiedFile.rename(newFileName);
-
+        
+        await copiedFile.rename(newFileName);
+        
         const finalFile = new File(wallpaperDirectory, newFileName);
-
+        
         mutateProperty("personalization", {
           wallpaper: {
             id: newId,
             url: finalFile.uri
           }
         });
+      } else {
+        console.error("The copied file was not found");
       }
 
     } catch (error) {
       console.log("Erreur upload:", error);
+      alert("Erreur lors de l'importation de l'image.");
     }
   }
 
