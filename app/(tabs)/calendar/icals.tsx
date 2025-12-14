@@ -94,8 +94,15 @@ export default function TabOneScreen() {
           />
           {icalUrl.length > 0 && (
             <Trailing>
-              <AnimatedPressable onPress={handleAdd} disabled={!isValidUrl(icalUrl)}>
-                <Papicons name={'Add'} size={24} color={'#D6502B'} />
+              <AnimatedPressable
+                onPress={handleAdd}
+                disabled={!isValidUrl(icalUrl)}
+              >
+                <Papicons
+                  name={'Add'}
+                  size={24}
+                  color={!isValidUrl(icalUrl) ? colors.text + '50' : '#D6502B'}
+                />
               </AnimatedPressable>
             </Trailing>
           )}

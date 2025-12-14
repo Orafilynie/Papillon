@@ -93,30 +93,50 @@ const WallpaperModal = () => {
     })
   }
 
-  const uploadCustomWallpaper = () => {
+  const uploadCustomWallpaper = async () => {
     try {
-      ImagePicker.launchImageLibraryAsync({
+      const result = await ImagePicker.launchImageLibraryAsync({
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
-      }).then((result) => {
-        if (result.canceled) return;
+      });
 
-        const file = result.assets[0];
+      if (result.canceled) return;
 
-        const importedFile = new File(file);
-        importedFile.copy(wallpaperDirectory);
-        importedFile.rename(`custom:${Date.now()}.jpg`);
+      const file = result.assets[0];
+
+      if (!wallpaperDirectory.exists) {
+        wallpaperDirectory.create();
+      }
+
+      const sourceFile = new File(file.uri);
+      const newId = `custom:${Date.now()}`;
+      const newFileName = `${newId}.jpg`;
+
+      const tempFileName = file.uri.split('/').pop();
+
+      await sourceFile.copy(wallpaperDirectory);
+
+      const copiedFile = new File(wallpaperDirectory, tempFileName);
+
+      if (copiedFile.exists) {
+        await copiedFile.rename(newFileName);
+
+        const finalFile = new File(wallpaperDirectory, newFileName);
 
         mutateProperty("personalization", {
           wallpaper: {
-            id: `custom:${Date.now()}`,
-            url: importedFile.uri
+            id: newId,
+            url: finalFile.uri
           }
-        })
-      })
-    } catch (error) {
-      console.log(error);
+        });
+      } else {
+        throw new Error("Le fichier n'a pas été copié correctement.");
+      }
+
+    } catch (error: any) {
+      console.log("Erreur upload:", error);
+      alert("Erreur lors de l'importation de l'image.");
     }
   }
 
