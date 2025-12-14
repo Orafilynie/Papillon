@@ -64,6 +64,7 @@ export default function TabOneScreen() {
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.containerContent}
       style={styles.container}
+      keyboardShouldPersistTaps="handled"
     >
       <List>
         {icalUrl.length > 0 &&
