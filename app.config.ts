@@ -10,7 +10,7 @@ module.exports = {
     version: PackageJSON.version,
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: ["papillon", "skoapp-prod"],
+    scheme: ["papillon", "izly", "skoapp-prod"],
     platforms: ["ios", "android"],
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
@@ -29,7 +29,7 @@ module.exports = {
       infoPlist: {
         CFBundleURLTypes: [
           {
-            CFBundleURLSchemes: ["papillon", "skoapp-prod"],
+            CFBundleURLSchemes: ["papillon", "izly", "skoapp-prod"],
           },
         ],
         CADisableMinimumFrameDurationOnPhone: true,
