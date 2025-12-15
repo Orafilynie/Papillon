@@ -49,6 +49,8 @@ const WallpaperModal = () => {
     fetchCollections();
   }, []);
 
+
+
   const [currentlyDownloading, setCurrentlyDownloading] = useState<string[]>([]);
 
   const settingsStore = useSettingsStore(state => state.personalization);
@@ -57,6 +59,19 @@ const WallpaperModal = () => {
   const currentWallpaper = settingsStore.wallpaper;
   const selectedId = currentWallpaper?.id;
   const hasCustomWallpaper = selectedId?.startsWith("custom:") ?? false;
+
+  const flatListRef = React.useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (collections.length > 0 && currentWallpaper) {
+      const collectionIndex = collections.findIndex((collection) => collection.images.find((image) => image.id === currentWallpaper.id));
+      if (collectionIndex !== -1) {
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({ index: collectionIndex, animated: true });
+        }, 500);
+      }
+    }
+  }, [collections, currentWallpaper]);
 
   const wallpaperDirectory = new Directory(Paths.document, "wallpapers");
 
@@ -68,7 +83,10 @@ const WallpaperModal = () => {
       mutateProperty("personalization", {
         wallpaper: {
           id: wallpaper.id,
-          url: wallpaperFile.uri
+          path: {
+            directory: wallpaperDirectory.name,
+            name: wallpaperFile.name
+          }
         }
       })
       return;
@@ -76,16 +94,17 @@ const WallpaperModal = () => {
 
     setCurrentlyDownloading((prev) => [...prev, wallpaper.id]);
 
-
     if (!wallpaperDirectory.exists) {
       wallpaperDirectory.create();
     }
-    File.downloadFileAsync(wallpaper.url, wallpaperFile).then((result) => {
-      const newUrl = result.uri;
+    File.downloadFileAsync(wallpaper.url!, wallpaperFile).then((result) => {
       mutateProperty("personalization", {
         wallpaper: {
           id: wallpaper.id,
-          url: newUrl
+          path: {
+            directory: wallpaperDirectory.name,
+            name: result.name
+          }
         }
       })
     }).finally(() => {
@@ -126,8 +145,11 @@ const WallpaperModal = () => {
 
         mutateProperty("personalization", {
           wallpaper: {
-            id: newId,
-            url: finalFile.uri
+            id: `custom:${Date.now()}`,
+            path: {
+              directory: importedFile.parentDirectory?.name,
+              name: importedFile.name
+            }
           }
         });
       } else {
@@ -143,15 +165,16 @@ const WallpaperModal = () => {
   return (
     <>
       <FlatList
-        contentInsetAdjustmentBehavior="automatic"
+        ref={flatListRef}
         data={collections}
         style={{
           flex: 1,
         }}
         contentContainerStyle={{
-          gap: 16
+          gap: 16,
+          paddingTop: 72
         }}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <View>
             <Stack direction="horizontal" alignItems="center" gap={8} padding={[16, 10]}>
               {item.icon &&
@@ -180,10 +203,15 @@ const WallpaperModal = () => {
                 paddingHorizontal: 12
               }}
               contentContainerStyle={{
-                gap: 6
+                gap: 6,
+                paddingRight: 12
               }}
               showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => <WallpaperImage item={item} onPress={() => downloadAndSelect(item)} selectedId={currentWallpaper?.id} isDownloading={currentlyDownloading.includes(item.id)} />}
+              getItemLayout={(data, index) => (
+                { length: 160 + 6, offset: (160 + 6) * index, index }
+              )}
+              initialScrollIndex={item.images.findIndex((image) => image.id === currentWallpaper?.id) !== -1 ? item.images.findIndex((image) => image.id === currentWallpaper?.id) : undefined}
             />
           </View>
         )}
@@ -191,6 +219,7 @@ const WallpaperModal = () => {
           <RefreshControl
             refreshing={loading}
             onRefresh={fetchCollections}
+            progressViewOffset={72}
           />
         }
       />
