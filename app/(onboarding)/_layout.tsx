@@ -55,6 +55,15 @@ export default function OnboardingLayout() {
                     initialParams={{ action: "addAccount" }}
                 />
                 <Stack.Screen
+                    name="local/name"
+                    options={{ ...newScreenOptions }}
+                />
+                <Stack.Screen
+                    name="local/summary"
+                    options={{ ...newScreenOptions }}
+                    initialParams={{ firstName: "", lastName: "", profilePicture: "" }}
+                />
+                <Stack.Screen
                     name="university/method"
                     options={{ ...newScreenOptions }}
                 />
