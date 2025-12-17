@@ -120,35 +120,24 @@ const WallpaperModal = () => {
         quality: 1,
       });
 
-      if (result.canceled) return;
+        const asset = result.assets[0];
+        const sourceFile = new File(asset.uri);
 
-      const file = result.assets[0];
+        if (!wallpaperDirectory.exists) {
+          wallpaperDirectory.create();
+        }
 
-      if (!wallpaperDirectory.exists) {
-        wallpaperDirectory.create();
-      }
+        const newFileName = `custom:${Date.now()}.jpg`;
+        const destFile = new File(wallpaperDirectory, newFileName);
 
-      const sourceFile = new File(file.uri);
-      const newId = `custom:${Date.now()}`;
-      const newFileName = `${newId}.jpg`;
-
-      const tempFileName = file.uri.split('/').pop();
-
-      await sourceFile.copy(wallpaperDirectory);
-
-      const copiedFile = new File(wallpaperDirectory, tempFileName);
-
-      if (copiedFile.exists) {
-        await copiedFile.rename(newFileName);
-
-        const finalFile = new File(wallpaperDirectory, newFileName);
+        sourceFile.copy(destFile);
 
         mutateProperty("personalization", {
           wallpaper: {
             id: `custom:${Date.now()}`,
             path: {
-              directory: importedFile.parentDirectory?.name,
-              name: importedFile.name
+              directory: wallpaperDirectory.name,
+              name: destFile.name
             }
           }
         });
