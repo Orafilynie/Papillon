@@ -112,13 +112,14 @@ const WallpaperModal = () => {
     })
   }
 
-  const uploadCustomWallpaper = async () => {
+  const uploadCustomWallpaper = () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
+      ImagePicker.launchImageLibraryAsync({
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
-      });
+      }).then((result) => {
+        if (result.canceled) return;
 
         const asset = result.assets[0];
         const sourceFile = new File(asset.uri);
@@ -140,14 +141,10 @@ const WallpaperModal = () => {
               name: destFile.name
             }
           }
-        });
-      } else {
-        throw new Error("Le fichier n'a pas été copié correctement.");
-      }
-
-    } catch (error: any) {
-      console.log("Erreur upload:", error);
-      alert("Erreur lors de l'importation de l'image.");
+        })
+      })
+    } catch (error) {
+      console.log(error);
     }
   }
 
