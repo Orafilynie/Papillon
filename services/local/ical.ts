@@ -29,42 +29,50 @@ export interface ParsedICalData {
 const cacheDir = new Directory(Paths.cache, 'ical_cache');
 
 export async function fetchAndParseICal(url: string, icalId: string, forceRefresh = false): Promise<ParsedICalData> {
+  if (!cacheDir.exists) cacheDir.create();
+  const icalFile = new File(cacheDir, `${icalId}.ics`);
+  let icalString: string | null = null;
+
+  if (forceRefresh) {
+    console.log(`[iCal] Refresh forcé demandé pour ${icalId}`);
+  }
+
   try {
-    if (!cacheDir.exists) {
-      cacheDir.create();
-    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const icalFile = new File(cacheDir, `${icalId}.ics`);
-    let icalString: string;
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
 
-    if (icalFile.exists && !forceRefresh) {
-      icalString = icalFile.textSync(); 
-    } else {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+    if (response.ok) {
       icalString = await response.text();
       
-      if (!icalFile.exists) {
-        icalFile.create();
-      }
+      if (!icalFile.exists) icalFile.create();
       icalFile.write(icalString);
     }
-
-    const { events, metadata } = parseICalString(icalString);
-    const { isADE, isHyperplanning, provider } = detectProvider(metadata.prodId);
-
-    return {
-      events,
-      calendarName: metadata.calendarName,
-      isADE,
-      isHyperplanning,
-      provider,
-      url
-    };
   } catch (error) {
-    console.error(`[iCal Service] Error:`, error);
-    throw error;
+    console.log(`[iCal Service] Réseau indisponible pour ${icalId}, tentative via cache...`);
   }
+
+  if (!icalString && icalFile.exists) {
+    icalString = icalFile.textSync();
+  }
+
+  if (!icalString) {
+    throw new Error(`Aucune donnée disponible pour l'iCal ${icalId} (Hors-ligne et sans cache)`);
+  }
+
+  const { events, metadata } = parseICalString(icalString);
+  const { isADE, isHyperplanning, provider } = detectProvider(metadata.prodId);
+
+  return {
+    events,
+    calendarName: metadata.calendarName,
+    isADE,
+    isHyperplanning,
+    provider,
+    url
+  };
 }
 
 export async function getICalEventsForWeek(weekStart: Date, weekEnd: Date, forceRefresh = false): Promise<SharedCourse[]> {
