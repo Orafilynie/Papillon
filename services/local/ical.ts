@@ -28,30 +28,37 @@ export interface ParsedICalData {
 
 const cacheDir = new Directory(Paths.cache, 'ical_cache');
 
+const lastFetchTimes: Record<string, number> = {};
+
 export async function fetchAndParseICal(url: string, icalId: string, forceRefresh = false): Promise<ParsedICalData> {
   if (!cacheDir.exists) cacheDir.create();
   const icalFile = new File(cacheDir, `${icalId}.ics`);
   let icalString: string | null = null;
 
-  if (forceRefresh) {
-    console.log(`[iCal] Refresh forcé demandé pour ${icalId}`);
-  }
+  const now = Date.now();
+  const lastFetch = lastFetchTimes[icalId] || 0;
+  const shouldFetch = forceRefresh || (now - lastFetch > 300000);
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+  if (!shouldFetch && icalFile.exists) {
+    icalString = icalFile.textSync();
+  } 
+  else {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
 
-    if (response.ok) {
-      icalString = await response.text();
-      
-      if (!icalFile.exists) icalFile.create();
-      icalFile.write(icalString);
+      if (response.ok) {
+        icalString = await response.text();
+        if (!icalFile.exists) icalFile.create();
+        icalFile.write(icalString);
+        lastFetchTimes[icalId] = now;
+      }
+    } catch (error) {
+      console.log(`[iCal Service] Réseau indisponible ou timeout, fallback cache.`);
     }
-  } catch (error) {
-    console.log(`[iCal Service] Réseau indisponible pour ${icalId}, tentative via cache...`);
   }
 
   if (!icalString && icalFile.exists) {
@@ -59,7 +66,7 @@ export async function fetchAndParseICal(url: string, icalId: string, forceRefres
   }
 
   if (!icalString) {
-    throw new Error(`Aucune donnée disponible pour l'iCal ${icalId} (Hors-ligne et sans cache)`);
+    throw new Error(`Aucune donnée disponible pour l'iCal ${icalId}`);
   }
 
   const { events, metadata } = parseICalString(icalString);
