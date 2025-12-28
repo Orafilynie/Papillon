@@ -24,10 +24,17 @@ export default function SubjectPersonalization() {
   const store = useAccountStore.getState()
 
   const account = accounts.find((a) => a.id === lastUsedAccount);
-  const subjects = Object.entries(account?.customisation?.subjects ?? {}).map(([key, value]) => ({
-    id: key,
-    ...value,
-  })).filter(item => item.name && item.emoji && item.color);
+  const subjects = Object.entries(account?.customisation?.subjects ?? {})
+    .map(([id, data]) => {
+      return {
+        id,
+        name: data.name || id,
+        emoji: data.emoji || "🤓",
+        color: data.color || "#D6502B",
+      };
+    })
+    .filter(item => item.id.trim().length > 0 || item.name.trim().length > 0)
+    .sort((a, b) => (a.emoji === "🤓" ? 1 : -1));
 
   const resetAllSubjects = () => {
     Alert.alert(
