@@ -3,7 +3,7 @@ import { useRoute, useTheme } from "@react-navigation/native";
 import React from "react";
 import { View } from "react-native";
 
-import { formatDistanceToNow, formatDistanceStrict, formatDistanceToNowStrict } from 'date-fns'
+import { formatDistanceToNow, formatDistanceStrict } from 'date-fns'
 import * as DateLocale from 'date-fns/locale';
 
 import { Course as SharedCourse, CourseStatus } from "@/services/shared/timetable";
@@ -45,6 +45,8 @@ export default function CourseModal() {
 
   const startTime = Math.floor(course.from.getTime() / 1000);
   const endTime = Math.floor(course.to.getTime() / 1000);
+
+  const groupDisplay = item.group?.replaceAll("[", "").replaceAll("]", "") || t("Modal_Course_Group_Full");
 
   return (
     <>
@@ -107,6 +109,11 @@ export default function CourseModal() {
                 description: item.teacher
               },
               {
+                papicon: <Papicons.Apple />,
+                title: t("Modal_Course_Group"),
+                description: groupDisplay
+              },
+              {
                 papicon: <Papicons.MapPin />,
                 title: t("Modal_Course_Room"),
                 description: item.room
@@ -118,7 +125,7 @@ export default function CourseModal() {
               }
             ]
           }
-        ]}
+        ].filter(Boolean)}
         ListHeaderComponent={
           <ModalOverhead
             subject={getSubjectName(item.subject)}
