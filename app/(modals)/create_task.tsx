@@ -24,7 +24,7 @@ export default function CreateTaskModal() {
 
   const [content, setContent] = useState("");
   const [dueDate, setDueDate] = useState(new Date());
-  const [selectedSubject, setSelectedSubject] = useState<{ name: string, emoji: string } | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<{ id: string, name: string, emoji: string } | null>(null);
 
   const accountStore = useAccountStore();
   const account = accountStore.accounts.find(a => a.id === accountStore.lastUsedAccount);
@@ -48,7 +48,7 @@ export default function CreateTaskModal() {
     const newTask = {
       id: generatedId,
       homeworkId: generatedId,
-      subject: selectedSubject.name,
+      subject: selectedSubject.id,
       content: content.trim(),
       dueDate: dueDate,
       isDone: false,
@@ -60,9 +60,7 @@ export default function CreateTaskModal() {
 
     try {
       await addHomeworkToDatabase([newTask as any]);
-
       DeviceEventEmitter.emit("refreshHomework");
-
       router.back();
     } catch (e) {
       Alert.alert(t("Error"), t("Create_Task_Save_Error"));
@@ -98,6 +96,7 @@ export default function CreateTaskModal() {
                       const subjectId = nativeEvent.event;
                       const subjectData = account?.customisation?.subjects[subjectId];
                       setSelectedSubject({
+                        id: subjectId,
                         name: subjectData?.name || getSubjectName(subjectId),
                         emoji: subjectData?.emoji || getSubjectEmoji(subjectId)
                       });

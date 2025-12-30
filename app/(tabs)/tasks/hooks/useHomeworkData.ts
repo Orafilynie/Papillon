@@ -17,7 +17,6 @@ export const useHomeworkData = (selectedWeek: number, alert: any) => {
 
   const store = useAccountStore.getState();
   const account = store.accounts.find(acc => acc.id === store.lastUsedAccount);
-  
   const services = useMemo(() => account?.services?.map((s: any) => s.id) ?? [], [account]);
   
   const rawCache = useHomeworkForWeek(selectedWeek, refreshTrigger);
@@ -36,19 +35,18 @@ export const useHomeworkData = (selectedWeek: number, alert: any) => {
       });
 
       result.forEach(hw => {
-        const id = generateId(hw.subject + hw.content + hw.createdByAccount + hw.dueDate.toDateString());
-        if (!merged[id] || !merged[id].custom) {
-          merged[id] = { ...hw, id: hw.id ?? id };
+        const cleanContent = hw.content.trim();
+        const id = hw.id ?? generateId(hw.subject + cleanContent + hw.createdByAccount + hw.dueDate.toDateString());
+
+        if (!merged[id]) {
+          merged[id] = { ...hw, id };
+        } else if (!merged[id].custom) {
+          merged[id] = { ...merged[id], ...hw, id };
         }
       });
 
       setHomework(prev => {
-        const prevKeys = Object.keys(prev);
-        const mergedKeys = Object.keys(merged);
-        if (prevKeys.length === mergedKeys.length && 
-            mergedKeys.every(key => prev[key]?.isDone === merged[key]?.isDone)) {
-          return prev;
-        }
+        if (JSON.stringify(prev) === JSON.stringify(merged)) return prev;
         return merged;
       });
 
@@ -58,11 +56,10 @@ export const useHomeworkData = (selectedWeek: number, alert: any) => {
       homeworksFromCache.forEach(hw => { fb[hw.id] = hw; });
       setHomework(fb);
     }
-  }, [selectedWeek, homeworksFromCache]);
+  }, [selectedWeek, homeworksFromCache]); 
 
   useEffect(() => {
     fetchHomeworks();
-    setRefreshTrigger(prev => prev + 1);
   }, [selectedWeek, subjects]);
 
   useEffect(() => {
@@ -88,7 +85,7 @@ export const useHomeworkData = (selectedWeek: number, alert: any) => {
       
       setHomework(prev => ({
         ...prev,
-        [item.id]: { ...(prev[item.id] ?? item), isDone: done }
+        [item.id]: { ...prev[item.id], isDone: done }
       }));
       
       setRefreshTrigger(prev => prev + 1);

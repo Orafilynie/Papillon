@@ -43,12 +43,13 @@ const Task = () => {
 
   const subjectInfo = useMemo(() => {
     const store = useAccountStore.getState();
-    const currentAccount = store.accounts.find(a => a.id === store.lastUsedAccount);
-    const customData = Object.values(currentAccount?.customisation?.subjects || {}).find(s => s.name === taskData.subject);
+    const account = store.accounts.find(a => a.id === store.lastUsedAccount);
+    const customData = account?.customisation?.subjects[taskData.subject];
+
     return {
       color: customData?.color || getSubjectColor(taskData.subject),
       emoji: customData?.emoji || getSubjectEmoji(taskData.subject),
-      name: getSubjectName(taskData.subject)
+      name: customData?.name || getSubjectName(taskData.subject)
     };
   }, [taskData.subject]);
 
@@ -58,6 +59,7 @@ const Task = () => {
     if (manager && !taskData.custom) await manager.setHomeworkCompletion(sharedHw, done);
     await updateHomeworkIsDone(taskData.id, done);
     setIsDone(done);
+    DeviceEventEmitter.emit("refreshHomework");
   };
 
   const handleDelete = () => {
