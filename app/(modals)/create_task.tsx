@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { View, TextInput, Alert, Platform } from 'react-native';
+import { View, TextInput, Alert, Platform, DeviceEventEmitter } from 'react-native';
 import { useTheme } from '@react-navigation/native';
 import { router } from "expo-router";
 import * as Papicons from '@getpapillon/papicons';
@@ -34,11 +34,7 @@ export default function CreateTaskModal() {
       id: id,
       title: data.name || id,
     }));
-
-    const sorted = subjects.sort((a, b) =>
-      a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
-    );
-
+    const sorted = subjects.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
     return sorted.length > 0 ? sorted : [{ id: 'none', title: t("Subjects_None_Configured") }];
   }, [account]);
 
@@ -65,11 +61,7 @@ export default function CreateTaskModal() {
     try {
       await addHomeworkToDatabase([newTask as any]);
 
-      const store = useAccountStore.getState();
-      const currentAccount = store.accounts.find(a => a.id === store.lastUsedAccount);
-      if (currentAccount?.customisation?.subjects) {
-        store.setSubjects({ ...currentAccount.customisation.subjects });
-      }
+      DeviceEventEmitter.emit("refreshHomework");
 
       router.back();
     } catch (e) {
@@ -98,18 +90,13 @@ export default function CreateTaskModal() {
               {
                 title: t("Create_Task_Subject"),
                 description: selectedSubject ? `${selectedSubject.emoji} ${selectedSubject.name}` : t("Create_Task_Subject_Placeholder"),
-                leading: (
-                  <Icon papicon opacity={0.5}>
-                    <Papicons.Newspaper />
-                  </Icon>
-                ),
+                leading: <Icon papicon opacity={0.5}><Papicons.Newspaper /></Icon>,
                 content: (
                   <MenuView
                     title={t("Create_Task_Subject_Placeholder")}
                     onPressAction={({ nativeEvent }) => {
                       const subjectId = nativeEvent.event;
                       const subjectData = account?.customisation?.subjects[subjectId];
-
                       setSelectedSubject({
                         name: subjectData?.name || getSubjectName(subjectId),
                         emoji: subjectData?.emoji || getSubjectEmoji(subjectId)
@@ -125,11 +112,7 @@ export default function CreateTaskModal() {
               {
                 title: t("Create_Task_DueDate"),
                 description: dueDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }),
-                leading: (
-                  <Icon papicon opacity={0.5}>
-                    <Papicons.Calendar />
-                  </Icon>
-                ),
+                leading: <Icon papicon opacity={0.5}><Papicons.Calendar /></Icon>,
                 onPress: () => calendarRef.current?.toggle()
               }
             ]
@@ -151,7 +134,6 @@ export default function CreateTaskModal() {
           }
         ]}
       />
-
       <Calendar ref={calendarRef} date={dueDate} onDateChange={setDueDate} color={colors.primary} />
     </View>
   );

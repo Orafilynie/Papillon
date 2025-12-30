@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, DeviceEventEmitter } from 'react-native';
 
 import TasksHeader from './components/TasksHeader';
 import TasksList from './components/TasksList';
@@ -13,15 +13,14 @@ import { useAlert } from "@/ui/components/AlertProvider";
 const TasksView: React.FC = () => {
   const alert = useAlert();
   const [headerHeight, setHeaderHeight] = useState(0);
-  const [shouldCollapseHeader, setShouldCollapseHeader] = useState(false);
 
   const {
     defaultWeek,
     selectedWeek,
     showWeekPicker,
-    toggleWeekPicker,
     onSelectWeek,
     setShowWeekPicker,
+    toggleWeekPicker,
   } = useWeekSelection();
 
   const {
@@ -32,20 +31,27 @@ const TasksView: React.FC = () => {
     setAsDone,
   } = useHomeworkData(selectedWeek, alert);
 
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener("refreshHomework", () => {
+      handleRefresh();
+    });
+
+    return () => subscription.remove();
+  }, [handleRefresh]);
+
   const {
     searchTerm,
     setSearchTerm,
-    showUndoneOnly,
     setShowUndoneOnly,
-    sortMethod,
     setSortMethod,
+    sortMethod,
     collapsedGroups,
     toggleGroup,
     sections,
   } = useTaskFilters(homeworksFromCache, homework);
 
   return (
-    <>
+    <View style={styles.container}>
       {showWeekPicker && (
         <WeekPicker
           selectedWeek={selectedWeek}
@@ -63,7 +69,7 @@ const TasksView: React.FC = () => {
           setSortMethod={setSortMethod}
           setSearchTerm={setSearchTerm}
           sortMethod={sortMethod}
-          shouldCollapseHeader={shouldCollapseHeader}
+          shouldCollapseHeader={false}
         />
 
         <TasksList
@@ -79,7 +85,7 @@ const TasksView: React.FC = () => {
           setAsDone={setAsDone}
         />
       </View>
-    </>
+    </View>
   );
 };
 

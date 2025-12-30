@@ -72,6 +72,7 @@ export const useHomeworkData = (selectedWeek: number, alert: any) => {
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
+    setRefreshTrigger(prev => prev + 1);
     await fetchHomeworks();
     setIsRefreshing(false);
   }, [fetchHomeworks]);

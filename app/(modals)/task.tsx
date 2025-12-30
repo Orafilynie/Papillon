@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Alert } from "react-native";
+import { Alert, DeviceEventEmitter } from "react-native";
 import { useTheme } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -34,17 +34,17 @@ const Task = () => {
     isDone: String(params.isDone) === "true",
     id: (params.id as string) || (params.homeworkId as string) || "",
     custom: String(params.custom) === "true",
-    createdByAccount: (params.createdByAccount as string) || "custom",
     attachments: (params.attachments as string) || "[]"
   }), [params]);
+
+  const [isDone, setIsDone] = useState(taskData.isDone);
+  const attachments = useMemo(() => parseJsonArray(taskData.attachments) as Attachment[], [taskData.attachments]);
+  const dueDateObj = useMemo(() => new Date(taskData.dueDate), [taskData.dueDate]);
 
   const subjectInfo = useMemo(() => {
     const store = useAccountStore.getState();
     const currentAccount = store.accounts.find(a => a.id === store.lastUsedAccount);
-    const customData = Object.values(currentAccount?.customisation?.subjects || {}).find(
-      (s) => s.name === getSubjectName(taskData.subject)
-    );
-
+    const customData = Object.values(currentAccount?.customisation?.subjects || {}).find(s => s.name === taskData.subject);
     return {
       color: customData?.color || getSubjectColor(taskData.subject),
       emoji: customData?.emoji || getSubjectEmoji(taskData.subject),
@@ -52,26 +52,12 @@ const Task = () => {
     };
   }, [taskData.subject]);
 
-  const [isDone, setIsDone] = useState(taskData.isDone);
-  const attachments = useMemo(() => parseJsonArray(taskData.attachments) as Attachment[], [taskData.attachments]);
-  const dueDateObj = useMemo(() => new Date(taskData.dueDate), [taskData.dueDate]);
-
-  const triggerRefresh = () => {
-    const store = useAccountStore.getState();
-    const currentAccount = store.accounts.find(a => a.id === store.lastUsedAccount);
-    if (currentAccount?.customisation?.subjects) {
-      store.setSubjects({ ...currentAccount.customisation.subjects });
-    }
-  };
-
   const setAsDone = async (done: boolean) => {
     const manager = getManager();
     const sharedHw = { ...taskData, dueDate: dueDateObj, attachments } as unknown as SharedHomework;
     if (manager && !taskData.custom) await manager.setHomeworkCompletion(sharedHw, done);
-
     await updateHomeworkIsDone(taskData.id, done);
     setIsDone(done);
-    triggerRefresh();
   };
 
   const handleDelete = () => {
@@ -83,7 +69,7 @@ const Task = () => {
         onPress: async () => {
           if (taskData.id) {
             await deleteHomeworkFromDatabase(taskData.id);
-            triggerRefresh();
+            DeviceEventEmitter.emit("refreshHomework");
             router.back();
           }
         }
@@ -100,71 +86,30 @@ const Task = () => {
           </NativeHeaderPressable>
         </NativeHeaderSide>
       )}
-
-      <LinearGradient
-        colors={[subjectInfo.color, colors.background]}
-        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 300, zIndex: -9, opacity: 0.4 }}
-      />
-
+      <LinearGradient colors={[subjectInfo.color, colors.background]} style={{ position: "absolute", top: 0, left: 0, right: 0, height: 300, zIndex: -9, opacity: 0.4 }} />
       <TableFlatList
-        ListHeaderComponent={
-          <ModalOverhead
-            emoji={subjectInfo.emoji}
-            subject={subjectInfo.name}
-            subjectVariant="header"
-            color={subjectInfo.color}
-            date={dueDateObj}
-            style={{ marginVertical: 24 }}
-          />
-        }
+        ListHeaderComponent={<ModalOverhead emoji={subjectInfo.emoji} subject={subjectInfo.name} subjectVariant="header" color={subjectInfo.color} date={dueDateObj} style={{ marginVertical: 24 }} />}
         sections={[
           {
             title: t("Modal_Task_Status"),
-            items: [
-              {
-                title: isDone ? t("Task_Done") : t("Task_Undone"),
-                leading: (
-                  <AnimatedPressable onPress={() => setAsDone(!isDone)}>
-                    <Stack
-                      backgroundColor={isDone ? subjectInfo.color : undefined}
-                      card radius={100} width={28} height={28} vAlign="center" hAlign="center"
-                      style={{ borderWidth: isDone ? 0 : 2, borderColor: colors.text + "20" }}
-                    >
-                      {isDone && <Papicons.Check size={22} color="white" />}
-                    </Stack>
-                  </AnimatedPressable>
-                )
-              }
-            ]
+            items: [{
+              title: isDone ? t("Task_Done") : t("Task_Undone"),
+              leading: (
+                <AnimatedPressable onPress={() => setAsDone(!isDone)}>
+                  <Stack backgroundColor={isDone ? subjectInfo.color : undefined} card radius={100} width={28} height={28} vAlign="center" hAlign="center" style={{ borderWidth: isDone ? 0 : 2, borderColor: colors.text + "20" }}>
+                    {isDone && <Papicons.Check size={22} color="white" />}
+                  </Stack>
+                </AnimatedPressable>
+              )
+            }]
           },
-          {
-            title: t("Modal_Task_Description"),
-            items: [{ title: formatHTML(taskData.content || ""), titleProps: { variant: "title", weight: "medium" } }]
-          },
-          attachments.length > 0 ? {
-            title: t("Modal_Task_Attachments"),
-            items: attachments.map((attachment: Attachment) => ({
-              title: attachment.name || attachment.url,
-              leading: <Icon papicon><Papicons.Link /></Icon>,
-              onPress: () => WebBrowser.openBrowserAsync(attachment.url)
-            }))
-          } : null,
-          taskData.custom ? {
-            title: t("Modal_Task_Options"),
-            items: [
-              {
-                title: t("Modal_Task_Delete_Custom"),
-                titleProps: { color: colors.notification },
-                leading: <Icon papicon color={colors.notification}><Papicons.Cross /></Icon>,
-                onPress: handleDelete
-              }
-            ]
-          } : null
+          { title: t("Modal_Task_Description"), items: [{ title: formatHTML(taskData.content || ""), titleProps: { variant: "title", weight: "medium" } }] },
+          attachments.length > 0 ? { title: t("Modal_Task_Attachments"), items: attachments.map(att => ({ title: att.name || att.url, leading: <Icon papicon><Papicons.Link /></Icon>, onPress: () => WebBrowser.openBrowserAsync(att.url) })) } : null,
+          taskData.custom ? { title: t("Modal_Task_Options"), items: [{ title: t("Modal_Task_Delete_Custom"), titleProps: { color: colors.notification }, leading: <Icon papicon color={colors.notification}><Papicons.Cross /></Icon>, onPress: handleDelete }] } : null
         ].filter(Boolean)}
         style={{ backgroundColor: "transparent" }}
       />
     </>
   );
 };
-
 export default Task;
