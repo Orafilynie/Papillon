@@ -11,44 +11,64 @@ export const useHomeworkData = (selectedWeek: number, alert: any) => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [homework, setHomework] = useState<Record<string, Homework>>({});
 
+  const subjects = useAccountStore(state => 
+    state.accounts.find(a => a.id === state.lastUsedAccount)?.customisation?.subjects
+  );
+
   const store = useAccountStore.getState();
   const account = store.accounts.find(acc => acc.id === store.lastUsedAccount);
-  type Service = { id: string };
-  const services = useMemo(() => account?.services?.map((s: Service) => s.id) ?? [], [account]);
-  const manager = getManager();
+  
+  const services = useMemo(() => account?.services?.map((s: any) => s.id) ?? [], [account]);
+  
+  const rawCache = useHomeworkForWeek(selectedWeek, refreshTrigger);
 
-  const homeworksFromCache = useHomeworkForWeek(selectedWeek, refreshTrigger)
-    .filter(h => services.includes(h.createdByAccount));
+  const homeworksFromCache = useMemo(() => {
+    return rawCache.filter(h => services.includes(h.createdByAccount) || h.custom === true);
+  }, [rawCache, services]);
 
-  const fetchHomeworks = useCallback(
-    async (managerToUse = manager) => {
-      if (!managerToUse) { return; }
-      try {
-        const result: Homework[] = await managerToUse.getHomeworks(selectedWeek);
-        result.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-        const newHomeworks: Record<string, Homework> = {};
-        for (const hw of result) {
-          const id = generateId(
-            hw.subject + hw.content + hw.createdByAccount + hw.dueDate.toDateString()
-          );
-          newHomeworks[id] = { ...hw, id: hw.id ?? id };
+  const fetchHomeworks = useCallback(async (managerToUse = getManager()) => {
+    try {
+      const result: Homework[] = managerToUse ? await managerToUse.getHomeworks(selectedWeek) : [];
+      const merged: Record<string, Homework> = {};
+
+      homeworksFromCache.forEach(hw => {
+        merged[hw.id] = hw;
+      });
+
+      result.forEach(hw => {
+        const id = generateId(hw.subject + hw.content + hw.createdByAccount + hw.dueDate.toDateString());
+        if (!merged[id] || !merged[id].custom) {
+          merged[id] = { ...hw, id: hw.id ?? id };
         }
-        setHomework(newHomeworks);
-        setRefreshTrigger(p => p + 1);
-      } catch (e) {
-        error("Fetch error", String(e));
-      }
-    },
-    [selectedWeek, manager]
-  );
+      });
+
+      setHomework(prev => {
+        const prevKeys = Object.keys(prev);
+        const mergedKeys = Object.keys(merged);
+        if (prevKeys.length === mergedKeys.length && 
+            mergedKeys.every(key => prev[key]?.isDone === merged[key]?.isDone)) {
+          return prev;
+        }
+        return merged;
+      });
+
+    } catch (e) {
+      error("Fetch error", String(e));
+      const fb: Record<string, Homework> = {};
+      homeworksFromCache.forEach(hw => { fb[hw.id] = hw; });
+      setHomework(fb);
+    }
+  }, [selectedWeek, homeworksFromCache]);
 
   useEffect(() => {
     fetchHomeworks();
-    const unsubscribe = subscribeManagerUpdate((updatedManager) => {
-      fetchHomeworks(updatedManager);
-    });
+    setRefreshTrigger(prev => prev + 1);
+  }, [selectedWeek, subjects]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeManagerUpdate(() => fetchHomeworks());
     return () => unsubscribe();
-  }, [selectedWeek, fetchHomeworks]);
+  }, [fetchHomeworks]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -56,54 +76,29 @@ export const useHomeworkData = (selectedWeek: number, alert: any) => {
     setIsRefreshing(false);
   }, [fetchHomeworks]);
 
-  const setAsDone = useCallback(
-    async (item: Homework, done: boolean) => {
-      const id = generateId(
-        item.subject +
-        item.content +
-        item.createdByAccount +
-        new Date(item.dueDate).toDateString()
-      );
-
-      try {
-        const manager = getManager();
-        await manager.setHomeworkCompletion(item, done)
-
-        updateHomeworkIsDone(id, done);
-        
-        setRefreshTrigger(prev => prev + 1);
-        setHomework(prev => ({
-          ...prev,
-          [id]: {
-            ...(prev[id] ?? item),
-            isDone: done,
-          }
-        }));
+  const setAsDone = useCallback(async (item: Homework, done: boolean) => {
+    try {
+      const manager = getManager();
+      if (manager && !item.custom) {
+        await manager.setHomeworkCompletion(item, done);
       }
-      catch (err) {
-        alert.showAlert({
-            title: "Une erreur est survenue",
-            message: "Ce devoir n'a pas été mis à jour",
-            description:
-              "Nous n'avons pas réussi à mettre à jour l'état du devoir, si ce devoir est important, merci de vous rendre sur l'application officielle de votre établissement afin de définir son état.",
-            color: "#D60046",
-            icon: "TriangleAlert",
-            technical: String(err)
-          });
 
-        updateHomeworkIsDone(id, !done);
-        setRefreshTrigger(prev => prev + 1);
-        setHomework(prev => ({
-          ...prev,
-          [id]: {
-            ...(prev[id] ?? item),
-            isDone: !done,
-          }
-        }));
-      }
-    },
-    []
-  );
+      await updateHomeworkIsDone(item.id, done);
+      
+      setHomework(prev => ({
+        ...prev,
+        [item.id]: { ...(prev[item.id] ?? item), isDone: done }
+      }));
+      
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      alert.showAlert({
+        title: "Erreur",
+        message: "Impossible de mettre à jour l'état du devoir.",
+        color: "#D60046",
+      });
+    }
+  }, [alert]);
 
   return {
     homework,

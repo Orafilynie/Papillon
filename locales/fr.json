@@ -202,6 +202,18 @@
   "Task_Sorting_Title": "Trier par",
   "Task_OnlyShowUndone": "Tâches terminées",
   "Task_Show_Title": "Afficher",
+  "Task_Delete_Confirm_Title": "Supprimer le devoir",
+  "Task_Delete_Confirm_Message": "Voulez-vous vraiment supprimer ce devoir personnel ?",
+  
+  "Create_Task_Title": "Nouveau devoir",
+  "Create_Task_Subject": "Matière",
+  "Create_Task_Subject_Placeholder": "Sélectionner une matière",
+  "Create_Task_DueDate": "Date de rendu",
+  "Create_Task_Content_Placeholder": "Apprendre la leçon...",
+  "Create_Task_Error_Title": "Champs requis",
+  "Create_Task_Error_Message": "Veuillez choisir une matière et écrire une consigne.",
+  "Create_Task_Save_Error": "Impossible de sauvegarder le devoir.",
+
   "Settings_General": "Général",
 
   "Latest_Grades": "Nouvelles notes",
@@ -442,6 +454,8 @@
   "Modal_Task_Status": "État du devoir",
   "Modal_Task_Description": "Description du devoir",
   "Modal_Task_Attachments": "Pièces jointes",
+  "Modal_Task_Options": "Options",
+  "Modal_Task_Delete_Custom": "Supprimer le devoir personnel",
 
   "Today": "Aujourd'hui",
   "Yesterday": "Hier",

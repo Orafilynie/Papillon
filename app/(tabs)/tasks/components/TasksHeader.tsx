@@ -1,13 +1,17 @@
 import { useTheme } from '@react-navigation/native';
 import { t } from 'i18next';
 import React, { useMemo } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Dimensions, View } from 'react-native';
+import { router } from "expo-router";
 
 import { getDateRangeOfWeek, getWeekNumberFromDate } from '@/database/useHomework';
 import ChipButton from '@/ui/components/ChipButton';
 import Search from '@/ui/components/Search';
 import TabHeader from '@/ui/components/TabHeader';
 import TabHeaderTitle from '@/ui/components/TabHeaderTitle';
+import Stack from '@/ui/components/Stack';
+import AnimatedPressable from '@/ui/components/AnimatedPressable';
+import * as Papicons from '@getpapillon/papicons';
 
 export type SortMethod = 'date' | 'subject' | 'done';
 
@@ -98,14 +102,36 @@ const TasksHeader: React.FC<TasksHeaderProps> = ({
         </ChipButton>
       }
       bottom={
-        <Search
-          placeholder={t('Tasks_Search_Placeholder')}
-          color='#C54CB3'
-          onTextChange={setSearchTerm}
-          style={{
-            marginTop: 6
-          }}
-        />
+        <Stack
+          direction="horizontal"
+          gap={10}
+          vAlign="center"
+          style={{ width: Dimensions.get("window").width - 32, marginTop: 6 }}
+        >
+          <View style={{ flex: 1 }}>
+            <Search
+              placeholder={t('Tasks_Search_Placeholder')}
+              color='#C54CB3'
+              onTextChange={setSearchTerm}
+              style={{ width: '100%' }}
+            />
+          </View>
+          <AnimatedPressable
+            onPress={() => router.push("/(modals)/create_task")}
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: '#C54CB320',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: '#C54CB340'
+            }}
+          >
+            <Papicons.PenAlt size={22} color="#C54CB3" />
+          </AnimatedPressable>
+        </Stack>
       }
       shouldCollapseHeader={shouldCollapseHeader}
     />
