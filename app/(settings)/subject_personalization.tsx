@@ -12,16 +12,16 @@ import Item, { Leading, Trailing } from "@/ui/components/Item";
 import List from "@/ui/components/List";
 import Stack from "@/ui/components/Stack";
 import Typography from "@/ui/components/Typography";
-import { useSettingsStore } from "@/stores/settings";
 import { NativeHeaderPressable, NativeHeaderSide } from "@/ui/components/NativeHeader";
 import { Trash2 } from "lucide-react-native";
 
 export default function SubjectPersonalization() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
 
   const accounts = useAccountStore((state) => state.accounts);
   const lastUsedAccount = useAccountStore((state) => state.lastUsedAccount);
-  const store = useAccountStore.getState()
+  const store = useAccountStore.getState();
 
   const account = accounts.find((a) => a.id === lastUsedAccount);
   const subjects = Object.entries(account?.customisation?.subjects ?? {})
@@ -34,17 +34,16 @@ export default function SubjectPersonalization() {
       };
     })
     .filter(item => item.id.trim().length > 0 || item.name.trim().length > 0)
-    .sort((a, b) => (a.emoji === "🤓" ? 1 : -1));
+    .sort((a, b) => {
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
 
   const resetAllSubjects = () => {
     Alert.alert(
       t("Settings_Subjects_Reset_Title"),
       t("Settings_Subjects_Reset_Message"),
       [
-        {
-          text: t("CANCEL_BTN"),
-          style: "cancel",
-        },
+        { text: t("CANCEL_BTN"), style: "cancel" },
         {
           text: t("Settings_Subjects_Reset_Button"),
           style: "destructive",
@@ -56,9 +55,39 @@ export default function SubjectPersonalization() {
     );
   };
 
+  const deleteSubject = (id: string, name: string) => {
+    Alert.alert(
+      "Supprimer la personnalisation",
+      `Voulez-vous supprimer définitivement "${name}" ?`,
+      [
+        { text: t("CANCEL_BTN"), style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: () => {
+            const currentSubjects = { ...account?.customisation?.subjects };
+
+            const cleanedSubjects = Object.keys(currentSubjects)
+              .filter(key => key !== id && key !== name)
+              .reduce((obj, key) => {
+                obj[key] = currentSubjects[key];
+                return obj;
+              }, {} as any);
+
+            store.setSubjects(cleanedSubjects);
+
+            setTimeout(() => {
+              store.setSubjects(cleanedSubjects);
+            }, 100);
+          },
+        },
+      ]
+    );
+  };
+
   function renderItem(emoji: string, name: string, id: string, color: string) {
     return (
-      <Item>
+      <Item key={id}>
         <Leading>
           <Stack
             backgroundColor={color + "20"}
@@ -70,12 +99,7 @@ export default function SubjectPersonalization() {
               justifyContent: "center",
             }}
           >
-            <Typography
-              style={{
-                fontSize: 25,
-                lineHeight: 32,
-              }}
-            >
+            <Typography style={{ fontSize: 25, lineHeight: 32 }}>
               {emoji}
             </Typography>
           </Stack>
@@ -88,14 +112,10 @@ export default function SubjectPersonalization() {
             onPress={() => {
               router.push({
                 pathname: "/(settings)/edit_subject",
-                params: {
-                  id,
-                  emoji,
-                  color,
-                  name
-                }
+                params: { id, emoji, color, name }
               })
             }}
+            onLongPress={() => deleteSubject(id, name)}
             style={{
               borderRadius: 20,
               overflow: "hidden",
@@ -111,9 +131,7 @@ export default function SubjectPersonalization() {
             }}
           >
             <Papicons name={"PenAlt"} color={colors.text + "7F"} />
-            <Typography
-              color={"secondary"}
-            >
+            <Typography color={"secondary"}>
               Modifier
             </Typography>
           </AnimatedPressable>
@@ -122,14 +140,12 @@ export default function SubjectPersonalization() {
     )
   }
 
-  const { t } = useTranslation();
-
   return (
     <>
       <NativeHeaderSide side="Right">
         <NativeHeaderPressable onPress={() => resetAllSubjects()}>
           <Icon>
-            <Trash2 />
+            <Trash2 size={24} color={colors.notification} />
           </Icon>
         </NativeHeaderPressable>
       </NativeHeaderSide>
@@ -144,17 +160,8 @@ export default function SubjectPersonalization() {
             {subjects.map(item => renderItem(item.emoji, item.name, item.id, item.color))}
           </List>
         ) : (
-          <Stack
-            hAlign="center"
-            vAlign="center"
-            margin={16}
-            gap={16}
-          >
-            <View
-              style={{
-                alignItems: "center"
-              }}
-            >
+          <Stack hAlign="center" vAlign="center" margin={16} gap={16}>
+            <View style={{ alignItems: "center" }}>
               <Icon papicon opacity={0.5} size={32} style={{ marginBottom: 3 }}>
                 <Papicons name={"Card"} />
               </Icon>

@@ -27,7 +27,7 @@ const TaskItem = memo(
     const cleanContent = useMemo(() => item.content.replace(/<[^>]*>/g, ""), [item.content]);
     const magic = useMagicPrediction(cleanContent);
 
-    const displayEmoji = useMemo(() => {
+    const subjectSettings = useMemo(() => {
       const store = useAccountStore.getState();
       const account = store.accounts.find(a => a.id === store.lastUsedAccount);
 
@@ -35,7 +35,10 @@ const TaskItem = memo(
         (s) => s.name === getSubjectName(item.subject)
       );
 
-      return customData?.emoji || getSubjectEmoji(item.subject);
+      return {
+        emoji: customData?.emoji || getSubjectEmoji(item.subject),
+        color: customData?.color || getSubjectColor(item.subject),
+      };
     }, [item.subject]);
 
     return (
@@ -46,9 +49,9 @@ const TaskItem = memo(
       >
         <Task
           subject={getSubjectName(item.subject)}
-          emoji={displayEmoji}
+          emoji={subjectSettings.emoji}
           title={""}
-          color={getSubjectColor(item.subject)}
+          color={subjectSettings.color}
           description={item.content}
           date={new Date(item.dueDate)}
           completed={item.isDone}

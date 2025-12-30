@@ -35,11 +35,11 @@ export default function CreateTaskModal() {
       title: data.name || id,
     }));
 
-    const sortedSubjects = subjects.sort((a, b) =>
+    const sorted = subjects.sort((a, b) =>
       a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
     );
 
-    return sortedSubjects.length > 0 ? sortedSubjects : [{ id: 'none', title: t("Subjects_None_Configured") }];
+    return sorted.length > 0 ? sorted : [{ id: 'none', title: t("Subjects_None_Configured") }];
   }, [account]);
 
   const handleSave = async () => {
@@ -67,8 +67,9 @@ export default function CreateTaskModal() {
 
       const store = useAccountStore.getState();
       const currentAccount = store.accounts.find(a => a.id === store.lastUsedAccount);
-      const currentSubjects = currentAccount?.customisation?.subjects || {};
-      store.setSubjects({ ...currentSubjects });
+      if (currentAccount?.customisation?.subjects) {
+        store.setSubjects({ ...currentAccount.customisation.subjects });
+      }
 
       router.back();
     } catch (e) {
@@ -107,12 +108,10 @@ export default function CreateTaskModal() {
                     title={t("Create_Task_Subject_Placeholder")}
                     onPressAction={({ nativeEvent }) => {
                       const subjectId = nativeEvent.event;
-                      const selectedAction = subjectActions.find(a => a.id === subjectId);
-
                       const subjectData = account?.customisation?.subjects[subjectId];
 
                       setSelectedSubject({
-                        name: selectedAction?.title || subjectId,
+                        name: subjectData?.name || getSubjectName(subjectId),
                         emoji: subjectData?.emoji || getSubjectEmoji(subjectId)
                       });
                     }}

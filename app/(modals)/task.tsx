@@ -41,13 +41,12 @@ const Task = () => {
   const subjectInfo = useMemo(() => {
     const store = useAccountStore.getState();
     const currentAccount = store.accounts.find(a => a.id === store.lastUsedAccount);
-
     const customData = Object.values(currentAccount?.customisation?.subjects || {}).find(
-      (s) => s.name === taskData.subject
+      (s) => s.name === getSubjectName(taskData.subject)
     );
 
     return {
-      color: getSubjectColor(taskData.subject),
+      color: customData?.color || getSubjectColor(taskData.subject),
       emoji: customData?.emoji || getSubjectEmoji(taskData.subject),
       name: getSubjectName(taskData.subject)
     };
@@ -57,22 +56,22 @@ const Task = () => {
   const attachments = useMemo(() => parseJsonArray(taskData.attachments) as Attachment[], [taskData.attachments]);
   const dueDateObj = useMemo(() => new Date(taskData.dueDate), [taskData.dueDate]);
 
+  const triggerRefresh = () => {
+    const store = useAccountStore.getState();
+    const currentAccount = store.accounts.find(a => a.id === store.lastUsedAccount);
+    if (currentAccount?.customisation?.subjects) {
+      store.setSubjects({ ...currentAccount.customisation.subjects });
+    }
+  };
+
   const setAsDone = async (done: boolean) => {
     const manager = getManager();
     const sharedHw = { ...taskData, dueDate: dueDateObj, attachments } as unknown as SharedHomework;
-
-    if (manager && !taskData.custom) {
-      await manager.setHomeworkCompletion(sharedHw, done);
-    }
+    if (manager && !taskData.custom) await manager.setHomeworkCompletion(sharedHw, done);
 
     await updateHomeworkIsDone(taskData.id, done);
     setIsDone(done);
-
-    const store = useAccountStore.getState();
-    const currentAccount = store.accounts.find(a => a.id === store.lastUsedAccount);
-    const currentSubjects = currentAccount?.customisation?.subjects || {};
-
-    store.setSubjects({ ...currentSubjects });
+    triggerRefresh();
   };
 
   const handleDelete = () => {
@@ -84,12 +83,7 @@ const Task = () => {
         onPress: async () => {
           if (taskData.id) {
             await deleteHomeworkFromDatabase(taskData.id);
-
-            const store = useAccountStore.getState();
-            const currentAccount = store.accounts.find(a => a.id === store.lastUsedAccount);
-            const currentSubjects = currentAccount?.customisation?.subjects || {};
-
-            store.setSubjects({ ...currentSubjects });
+            triggerRefresh();
             router.back();
           }
         }
@@ -102,9 +96,7 @@ const Task = () => {
       {taskData.custom && (
         <NativeHeaderSide side="Right">
           <NativeHeaderPressable onPress={handleDelete}>
-            <Icon papicon color={colors.notification}>
-              <Papicons.Cross />
-            </Icon>
+            <Icon papicon color={colors.notification}><Papicons.Cross /></Icon>
           </NativeHeaderPressable>
         </NativeHeaderSide>
       )}
@@ -128,7 +120,6 @@ const Task = () => {
         sections={[
           {
             title: t("Modal_Task_Status"),
-            papicon: <Papicons.Check />,
             items: [
               {
                 title: isDone ? t("Task_Done") : t("Task_Undone"),
@@ -136,12 +127,7 @@ const Task = () => {
                   <AnimatedPressable onPress={() => setAsDone(!isDone)}>
                     <Stack
                       backgroundColor={isDone ? subjectInfo.color : undefined}
-                      card
-                      radius={100}
-                      width={28}
-                      height={28}
-                      vAlign="center"
-                      hAlign="center"
+                      card radius={100} width={28} height={28} vAlign="center" hAlign="center"
                       style={{ borderWidth: isDone ? 0 : 2, borderColor: colors.text + "20" }}
                     >
                       {isDone && <Papicons.Check size={22} color="white" />}
@@ -153,18 +139,14 @@ const Task = () => {
           },
           {
             title: t("Modal_Task_Description"),
-            papicon: <Papicons.List />,
             items: [{ title: formatHTML(taskData.content || ""), titleProps: { variant: "title", weight: "medium" } }]
           },
           attachments.length > 0 ? {
             title: t("Modal_Task_Attachments"),
-            papicon: <Papicons.Link />,
             items: attachments.map((attachment: Attachment) => ({
               title: attachment.name || attachment.url,
               leading: <Icon papicon><Papicons.Link /></Icon>,
-              onPress: () => WebBrowser.openBrowserAsync(attachment.url, {
-                presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET
-              })
+              onPress: () => WebBrowser.openBrowserAsync(attachment.url)
             }))
           } : null,
           taskData.custom ? {

@@ -8,6 +8,7 @@ import { View } from "react-native";
 import { Papicons } from "@getpapillon/papicons";
 import { formatHTML } from "@/utils/format/html";
 import i18n from "@/utils/i18n";
+import { Homework } from "@/services/shared/homework";
 
 function CompactTask({ fromCache, setHomeworkAsDone, ref, subject, color, description, emoji, dueDate, done, magic }: { fromCache: boolean, setHomeworkAsDone: (ref: Homework) => void, ref: Homework, subject: string, color: string, description: string, emoji: string, dueDate: Date, done: boolean, magic?: string }) {
   const { colors } = useTheme();
@@ -18,14 +19,13 @@ function CompactTask({ fromCache, setHomeworkAsDone, ref, subject, color, descri
         backgroundColor: color + 50,
         borderRadius: 20,
         width: "100%",
-        flex: 1,
         overflow: "hidden",
         borderWidth: 1,
         borderColor: colors.border
       }}
     >
       {magic && (
-        <Stack gap={10} direction="horizontal" hAlign="center" style={{ paddingHorizontal: 16, paddingTop: 6 }}>
+        <Stack gap={10} direction="horizontal" hAlign="center" style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6 }}>
           <Icon size={14} skeleton={false}>
             <Sparkle fill={color} stroke={color} strokeWidth={2} />
           </Icon>
@@ -41,7 +41,12 @@ function CompactTask({ fromCache, setHomeworkAsDone, ref, subject, color, descri
         hAlign="center"
         gap={16}
         padding={[16, 12]}
-        style={{ backgroundColor: colors.card, borderTopRightRadius: magic ? 7.5 : undefined, borderTopLeftRadius: magic ? 7.5 : undefined }}
+        style={{
+          backgroundColor: colors.card,
+          flex: 1,
+          borderTopRightRadius: magic ? 7.5 : 0,
+          borderTopLeftRadius: magic ? 7.5 : 0
+        }}
       >
         <Stack
           style={{

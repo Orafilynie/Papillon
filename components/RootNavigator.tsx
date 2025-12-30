@@ -88,6 +88,19 @@ export function RootNavigator() {
         }}
       />
       <Stack.Screen
+        name="(modals)/create_task"
+        options={{
+          headerShown: Platform.OS === 'ios' ? false : true,
+          headerTitle: "Nouveau Devoir",
+          headerLargeTitle: false,
+          presentation: "modal",
+          contentStyle: {
+            borderRadius: Platform.OS === 'ios' ? 30 : 0,
+            overflow: Platform.OS === 'ios' ? "hidden" : "visible",
+          }
+        }}
+      />
+      <Stack.Screen
         name="(modals)/grade"
         options={{
           headerShown: Platform.OS !== 'ios',

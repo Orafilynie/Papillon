@@ -63,56 +63,46 @@ export async function getHomeworksFromCache(
 }
 
 export async function addHomeworkToDatabase(homeworks: SharedHomework[]) {
+  if (homeworks.length === 0) return;
   const db = getDatabaseInstance();
 
   const weekNumber = getWeekNumberFromDate(homeworks[0].dueDate);
   const { start, end } = getDateRangeOfWeek(weekNumber);
-  const dbHomeworks = await db.get<Homework>("homework")
-    .query(Q.where("dueDate", Q.between(start.getTime(), end.getTime())))
-    .fetch();
 
-  const homeworkIds: string[] = [];
-  for (const hw of homeworks) {
-    const oldId = generateId(hw.subject + hw.content + hw.createdByAccount);
-    const id = generateId(
-      hw.subject + hw.content + hw.createdByAccount + hw.dueDate.toDateString()
-    );
+  await safeWrite(
+    db,
+    async () => {
+      const isSync = homeworks.length > 1 || !homeworks[0].custom;
 
-    homeworkIds.push(oldId, id);
-  }
+      if (isSync) {
+        const dbHomeworks = await db.get<Homework>("homework")
+          .query(Q.where("dueDate", Q.between(start.getTime(), end.getTime())))
+          .fetch();
 
-  const homeworksToDelete = dbHomeworks.filter(
-    dbHomeworks => !homeworkIds.includes(dbHomeworks.homeworkId)
-  );
+        const homeworkIds = homeworks.map(hw => generateId(
+          hw.subject + hw.content + hw.createdByAccount + hw.dueDate.toDateString()
+        ));
 
-  for (const homework of homeworksToDelete) {
-    await homework.markAsDeleted();
-  }
+        const homeworksToDelete = dbHomeworks.filter(
+          dbHw => !homeworkIds.includes(dbHw.homeworkId) && !dbHw.custom
+        );
 
-  for (const hw of homeworks) {
-    const oldId = generateId(hw.subject + hw.content + hw.createdByAccount);
-    const id = generateId(
-      hw.subject + hw.content + hw.createdByAccount + hw.dueDate.toDateString()
-    );
+        for (const homework of homeworksToDelete) {
+          await homework.markAsDeleted();
+        }
+      }
 
-    const existing = await db
-      .get("homework")
-      .query(Q.where("homeworkId", id))
-      .fetch();
-    const oldExisting = await db
-      .get("homework")
-      .query(Q.where("homeworkId", oldId))
-      .fetch();
+      for (const hw of homeworks) {
+        const id = generateId(
+          hw.subject + hw.content + hw.createdByAccount + hw.dueDate.toDateString()
+        );
 
-    for (const oldRecord of oldExisting) {
-      await oldRecord.markAsDeleted();
-    }
+        const existing = await db.get<Homework>("homework")
+          .query(Q.where("homeworkId", id))
+          .fetch();
 
-    if (existing.length === 0) {
-      await safeWrite(
-        db,
-        async () => {
-          await db.get("homework").create((record: Model) => {
+        if (existing.length === 0) {
+          await db.get("homework").create((record: any) => {
             const homework = record as Homework;
             Object.assign(homework, {
               homeworkId: id,
@@ -120,46 +110,23 @@ export async function addHomeworkToDatabase(homeworks: SharedHomework[]) {
               content: hw.content,
               dueDate: hw.dueDate.getTime(),
               isDone: hw.isDone,
-              returnFormat: hw.returnFormat,
-              attachments: JSON.stringify(hw.attachments),
-              evaluation: hw.evaluation,
-              custom: hw.custom,
+              attachments: JSON.stringify(hw.attachments || []),
+              custom: hw.custom || false,
               createdByAccount: hw.createdByAccount,
-              kidName: hw.kidName,
-              fromCache: true,
             });
           });
-        },
-        10000,
-        "addHomeworkToDatabase"
-      );
-    } else {
-      const recordToUpdate = existing[0];
-      await safeWrite(
-        db,
-        async () => {
-          await recordToUpdate.update((record: Model) => {
+        } else {
+          await existing[0].update((record: any) => {
             const homework = record as Homework;
-            Object.assign(homework, {
-              subject: hw.subject,
-              content: hw.content,
-              dueDate: hw.dueDate.getTime(),
-              isDone: hw.isDone,
-              returnFormat: hw.returnFormat,
-              attachments: JSON.stringify(hw.attachments),
-              evaluation: hw.evaluation,
-              custom: hw.custom,
-              createdByAccount: hw.createdByAccount,
-              kidName: hw.kidName,
-              fromCache: true,
-            });
+            homework.isDone = hw.isDone;
+            homework.content = hw.content;
           });
-        },
-        10000,
-        "updateHomeworkToDatabase"
-      );
-    }
-  }
+        }
+      }
+    },
+    15000,
+    "addHomeworkToDatabase"
+  );
 }
 
 export async function updateHomeworkIsDone(
@@ -191,6 +158,30 @@ export async function updateHomeworkIsDone(
     10000,
     "updateHomeworkIsDone"
   );
+}
+
+export async function deleteHomeworkFromDatabase(homeworkId: string) {
+  const db = getDatabaseInstance();
+  try {
+    const existing = await db
+      .get<Homework>("homework")
+      .query(Q.where("homeworkId", homeworkId))
+      .fetch();
+
+    if (existing.length > 0) {
+      await safeWrite(
+        db,
+        async () => {
+          await existing[0].markAsDeleted();
+          await existing[0].destroyPermanently();
+        },
+        10000,
+        "deleteHomeworkFromDatabase"
+      );
+    }
+  } catch (e) {
+    warn(`Error deleting homework: ${String(e)}`);
+  }
 }
 
 export function getDateRangeOfWeek(
