@@ -1,7 +1,7 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { View, TextInput, Alert, Platform, DeviceEventEmitter } from 'react-native';
 import { useTheme } from '@react-navigation/native';
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Papicons from '@getpapillon/papicons';
 import { MenuView } from "@react-native-menu/menu";
 import { t } from "i18next";
@@ -12,22 +12,37 @@ import Stack from "@/ui/components/Stack";
 import Icon from "@/ui/components/Icon";
 import Calendar, { CalendarRef } from "@/ui/components/Calendar";
 import { useAccountStore } from "@/stores/account";
-import { addHomeworkToDatabase } from "@/database/useHomework";
+import { addHomeworkToDatabase, updateHomeworkInDatabase } from "@/database/useHomework";
 import uuid from "@/utils/uuid/uuid";
 import { getSubjectEmoji } from '@/utils/subjects/emoji';
 import { getSubjectName } from '@/utils/subjects/name';
 import AnimatedPressable from '@/ui/components/AnimatedPressable';
 
-export default function CreateTaskModal() {
+export default function TaskEditor() {
   const { colors } = useTheme();
+  const params = useLocalSearchParams();
   const calendarRef = useRef<CalendarRef>(null);
 
-  const [content, setContent] = useState("");
-  const [dueDate, setDueDate] = useState(new Date());
+  const isEditing = !!params.id;
+
+  const [content, setContent] = useState((params.content as string) || "");
+  const [dueDate, setDueDate] = useState(params.dueDate ? new Date(Number(params.dueDate)) : new Date());
   const [selectedSubject, setSelectedSubject] = useState<{ id: string, name: string, emoji: string } | null>(null);
 
   const accountStore = useAccountStore();
   const account = accountStore.accounts.find(a => a.id === accountStore.lastUsedAccount);
+
+  useEffect(() => {
+    if (isEditing && params.subject && account) {
+      const subjectId = params.subject as string;
+      const subjectData = account?.customisation?.subjects?.[subjectId];
+      setSelectedSubject({
+        id: subjectId,
+        name: subjectData?.name || getSubjectName(subjectId),
+        emoji: subjectData?.emoji || getSubjectEmoji(subjectId)
+      });
+    }
+  }, [isEditing, params.subject]);
 
   const subjectActions = useMemo(() => {
     const subjects = Object.entries(account?.customisation?.subjects ?? {}).map(([id, data]) => ({
@@ -44,26 +59,34 @@ export default function CreateTaskModal() {
       return;
     }
 
-    const generatedId = uuid();
-    const newTask = {
-      id: generatedId,
-      homeworkId: generatedId,
-      subject: selectedSubject.id,
-      content: content.trim(),
-      dueDate: dueDate,
-      isDone: false,
-      attachments: [],
-      evaluation: false,
-      custom: true,
-      createdByAccount: account?.id || "custom",
-    };
-
     try {
-      await addHomeworkToDatabase([newTask as any]);
+      if (isEditing) {
+        await updateHomeworkInDatabase(params.id as string, {
+          subject: selectedSubject.id,
+          content: content.trim(),
+          dueDate: dueDate,
+        });
+      } else {
+        const generatedId = uuid();
+        const newTask = {
+          id: generatedId,
+          homeworkId: generatedId,
+          subject: selectedSubject.id,
+          content: content.trim(),
+          dueDate: dueDate,
+          isDone: false,
+          attachments: [],
+          evaluation: false,
+          custom: true,
+          createdByAccount: account?.id || "custom",
+        };
+        await addHomeworkToDatabase([newTask as any]);
+      }
+
       DeviceEventEmitter.emit("refreshHomework");
       router.back();
     } catch (e) {
-      Alert.alert(t("Error"), t("Create_Task_Save_Error"));
+      Alert.alert(t("Error"), isEditing ? "Erreur lors de la modif" : t("Create_Task_Save_Error"));
     }
   };
 
@@ -73,7 +96,9 @@ export default function CreateTaskModal() {
         <AnimatedPressable onPress={() => router.back()} style={{ padding: 8 }}>
           <Papicons.ArrowLeft size={24} color={colors.text} />
         </AnimatedPressable>
-        <Typography variant="header">{t("Create_Task_Title")}</Typography>
+        <Typography variant="header">
+          {isEditing ? t("Task_Editor_Title_Edit") : t("Create_Task_Title")}
+        </Typography>
         <AnimatedPressable onPress={handleSave} style={{ backgroundColor: colors.primary, padding: 8, borderRadius: 20 }}>
           <Papicons.Check size={24} color="white" />
         </AnimatedPressable>
@@ -94,7 +119,7 @@ export default function CreateTaskModal() {
                     title={t("Create_Task_Subject_Placeholder")}
                     onPressAction={({ nativeEvent }) => {
                       const subjectId = nativeEvent.event;
-                      const subjectData = account?.customisation?.subjects[subjectId];
+                      const subjectData = account?.customisation?.subjects?.[subjectId];
                       setSelectedSubject({
                         id: subjectId,
                         name: subjectData?.name || getSubjectName(subjectId),
@@ -126,7 +151,7 @@ export default function CreateTaskModal() {
                   placeholderTextColor={colors.text + "40"}
                   value={content}
                   onChangeText={setContent}
-                  style={{ color: colors.text, padding: 10, minHeight: 120, fontFamily: 'medium', fontSize: 16, textAlignVertical: 'top' }}
+                  style={{ color: colors.text, padding: 15, minHeight: 150, fontFamily: 'medium', fontSize: 16, textAlignVertical: 'top' }}
                 />
               )
             }]

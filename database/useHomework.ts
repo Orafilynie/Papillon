@@ -62,6 +62,36 @@ export async function getHomeworksFromCache(
   }
 }
 
+export async function updateHomeworkInDatabase(
+  homeworkId: string, 
+  data: { subject: string; content: string; dueDate: Date }
+) {
+  const db = getDatabaseInstance();
+  try {
+    const existing = await db.get<Homework>("homework")
+      .query(Q.where("homeworkId", homeworkId))
+      .fetch();
+
+    if (existing.length === 0) {
+        warn(`Update failed: Homework with ID ${homeworkId} not found`);
+        return false;
+    }
+
+    await safeWrite(db, async () => {
+      await existing[0].update((record) => {
+        record.subject = data.subject;
+        record.content = data.content;
+        record.dueDate = data.dueDate.getTime();
+      });
+    }, 10000, "updateHomeworkInDatabase");
+    
+    return true;
+  } catch (e) {
+    warn(`Error updating homework: ${String(e)}`);
+    return false;
+  }
+}
+
 export async function addHomeworkToDatabase(homeworks: SharedHomework[]) {
   if (homeworks.length === 0) return;
   const db = getDatabaseInstance();
@@ -79,7 +109,7 @@ export async function addHomeworkToDatabase(homeworks: SharedHomework[]) {
           .query(Q.where("dueDate", Q.between(start.getTime(), end.getTime())))
           .fetch();
 
-        const homeworkIds = homeworks.map(hw => generateId(
+        const homeworkIds = homeworks.map(hw => hw.id || generateId(
           hw.subject + hw.content + hw.createdByAccount + hw.dueDate.toDateString()
         ));
 
@@ -93,7 +123,7 @@ export async function addHomeworkToDatabase(homeworks: SharedHomework[]) {
       }
 
       for (const hw of homeworks) {
-        const id = generateId(
+        const id = hw.id || generateId(
           hw.subject + hw.content + hw.createdByAccount + hw.dueDate.toDateString()
         );
 
@@ -134,9 +164,7 @@ export async function updateHomeworkIsDone(
   isDone: boolean
 ) {
   const db = getDatabaseInstance();
-
-  const existing = await db
-    .get("homework")
+  const existing = await db.get("homework")
     .query(Q.where("homeworkId", homeworkId))
     .fetch();
 
@@ -146,37 +174,28 @@ export async function updateHomeworkIsDone(
   }
 
   const recordToUpdate = existing[0];
-
-  await safeWrite(
-    db,
-    async () => {
+  await safeWrite(db, async () => {
       await recordToUpdate.update((record: Model) => {
         const homework = record as Homework;
         homework.isDone = isDone;
       });
-    },
-    10000,
-    "updateHomeworkIsDone"
+    }, 10000, "updateHomeworkIsDone"
   );
 }
 
+// Suppression physique du devoir
 export async function deleteHomeworkFromDatabase(homeworkId: string) {
   const db = getDatabaseInstance();
   try {
-    const existing = await db
-      .get<Homework>("homework")
+    const existing = await db.get<Homework>("homework")
       .query(Q.where("homeworkId", homeworkId))
       .fetch();
 
     if (existing.length > 0) {
-      await safeWrite(
-        db,
-        async () => {
+      await safeWrite(db, async () => {
           await existing[0].markAsDeleted();
           await existing[0].destroyPermanently();
-        },
-        10000,
-        "deleteHomeworkFromDatabase"
+        }, 10000, "deleteHomeworkFromDatabase"
       );
     }
   } catch (e) {

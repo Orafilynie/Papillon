@@ -21,6 +21,7 @@ import CompactTask from '@/ui/components/CompactTask';
 import { getSubjectName } from '@/utils/subjects/name';
 import { getSubjectColor } from '@/utils/subjects/colors';
 import { getSubjectEmoji } from '@/utils/subjects/emoji';
+import { normalizeSubject } from "@/utils/subjects/normalize";
 
 const HomeScreen = () => {
   const insets = useSafeAreaInsets();
@@ -97,11 +98,16 @@ const HomeScreen = () => {
     return (
       <View style={{ paddingHorizontal: 12, paddingBottom: 16, gap: 10 }}>
         {homeworks.map((item) => {
-          const customData = customSubjects[item.subject]; // LIEN PAR ID
+          const target = normalizeSubject(item.subject);
+          const foundKey = Object.keys(customSubjects).find(key =>
+            normalizeSubject(key) === target ||
+            normalizeSubject(customSubjects[key].name) === target
+          );
+          const customData = foundKey ? customSubjects[foundKey] : null;
+
           return (
             <CompactTask
               key={item.id}
-              ref={item}
               setHomeworkAsDone={() => handleSetDone(item)}
               subject={customData?.name || getSubjectName(item.subject)}
               color={customData?.color || getSubjectColor(item.subject)}
@@ -110,8 +116,17 @@ const HomeScreen = () => {
               dueDate={new Date(item.dueDate)}
               done={item.isDone}
               onPress={() => router.push({
-                pathname: "/(modals)/task",
-                params: { ...item, dueDate: new Date(item.dueDate).getTime().toString() }
+                pathname: "/(modals)/tasks/task",
+                params: {
+                  id: item.id,
+                  subject: item.subject,
+                  content: item.content,
+                  dueDate: new Date(item.dueDate).getTime().toString(),
+                  isDone: item.isDone ? "true" : "false",
+                  custom: item.custom ? "true" : "false",
+                  createdByAccount: item.createdByAccount,
+                  attachments: JSON.stringify(item.attachments || [])
+                }
               })}
             />
           );

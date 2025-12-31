@@ -117,7 +117,7 @@ const TasksHeader: React.FC<TasksHeaderProps> = ({
             />
           </View>
           <AnimatedPressable
-            onPress={() => router.push("/(modals)/create_task")}
+            onPress={() => router.push("/(modals)/tasks/editor")}
             style={{
               width: 42,
               height: 42,

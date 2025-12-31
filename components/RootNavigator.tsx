@@ -79,7 +79,7 @@ export function RootNavigator() {
         }}
       />
       <Stack.Screen
-        name="(modals)/task"
+        name="(modals)/tasks/task"
         options={{
           headerShown: Platform.OS !== 'ios',
           headerTitle: t("Modal_Task_Title"),
@@ -88,10 +88,10 @@ export function RootNavigator() {
         }}
       />
       <Stack.Screen
-        name="(modals)/create_task"
+        name="(modals)/tasks/editor"
         options={{
           headerShown: Platform.OS === 'ios' ? false : true,
-          headerTitle: "Nouveau Devoir",
+          headerTitle: "Éditeur de devoir",
           headerLargeTitle: false,
           presentation: "modal",
           contentStyle: {
