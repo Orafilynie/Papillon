@@ -2,14 +2,10 @@ import { useState, useMemo, useCallback } from 'react';
 import { t } from 'i18next';
 import { Homework } from "@/services/shared/homework";
 import { getSubjectName } from "@/utils/subjects/name";
+import { normalizeSubject } from "@/utils/subjects/normalize";
+import { useAccountStore } from "@/stores/account";
 
 export type SortMethod = 'date' | 'subject' | 'done';
-
-const normalize = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
 
 const formatDateHeader = (date: Date): string => {
   return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -30,6 +26,10 @@ export const useTaskFilters = (
   const [showUndoneOnly, setShowUndoneOnly] = useState(false);
   const [sortMethod, setSortMethod] = useState<SortMethod>("date");
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
+
+  const customSubjects = useAccountStore(state => 
+    state.accounts.find(a => a.id === state.lastUsedAccount)?.customisation?.subjects || {}
+  );
 
   const toggleGroup = useCallback((headerId: string) => {
     setCollapsedGroups(prev => {
@@ -63,15 +63,20 @@ export const useTaskFilters = (
     }
 
     if (searchTerm.trim().length > 0) {
-      const term = normalize(searchTerm);
+      const term = normalizeSubject(searchTerm);
       data = data.filter(h => {
         const cleanContent = h.content.replace(/<[^>]*>/g, "");
-        const normalizedContent = normalize(cleanContent);
-        const normalizedSubject = normalize(h.subject);
-        const normalizedSubjectName = normalize(getSubjectName(h.subject));
+        const normalizedContent = normalizeSubject(cleanContent);
+        
+        const target = normalizeSubject(h.subject);
+        const foundKey = Object.keys(customSubjects).find(key => 
+          normalizeSubject(key) === target || normalizeSubject(customSubjects[key].name) === target
+        );
+        const subjectDisplayName = customSubjects[foundKey || ""]?.name || getSubjectName(h.subject);
+        const normalizedSubjectName = normalizeSubject(subjectDisplayName);
+
         return (
           normalizedContent.includes(term) ||
-          normalizedSubject.includes(term) ||
           normalizedSubjectName.includes(term)
         );
       });
@@ -80,7 +85,11 @@ export const useTaskFilters = (
     if (sortMethod === 'date') {
       data.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
     } else if (sortMethod === 'subject') {
-      data.sort((a, b) => a.subject.localeCompare(b.subject));
+      data.sort((a, b) => {
+        const nameA = normalizeSubject(getSubjectName(a.subject));
+        const nameB = normalizeSubject(getSubjectName(b.subject));
+        return nameA.localeCompare(nameB);
+      });
     } else if (sortMethod === 'done') {
       data.sort((a, b) => Number(a.isDone) - Number(b.isDone));
     }
@@ -89,7 +98,6 @@ export const useTaskFilters = (
 
     if (sortMethod === 'date' && !isSearching) {
       const sectionMap = new Map<string, HomeworkSection>();
-
       data.forEach((hw) => {
         const hwDate = new Date(hw.dueDate);
         const dateKey = hwDate.toDateString();
@@ -103,21 +111,13 @@ export const useTaskFilters = (
             data: []
           });
         }
-
         sectionMap.get(dateKey)!.data.push(hw);
       });
-
       return Array.from(sectionMap.values());
     }
 
-    return [
-      {
-        id: 'all',
-        title: '',
-        data
-      }
-    ];
-  }, [homeworksFromCache, homework, showUndoneOnly, searchTerm, sortMethod]);
+    return [{ id: 'all', title: '', data }];
+  }, [homeworksFromCache, homework, showUndoneOnly, searchTerm, sortMethod, customSubjects]);
 
   return {
     searchTerm,
