@@ -5,6 +5,9 @@ import { detectProvider } from './ical-utils';
 import { getAllIcals, updateProviderIfUnknown } from './ical-database';
 import { convertMultipleEvents } from './event-converter';
 import { filterEventsByWeek } from './event-filter';
+import { getAllIcals, updateProviderIfUnknown } from './ical-database';
+import { detectProvider } from './ical-utils';
+import { parseICalString } from './parsers/ical-event-parser';
 
 export interface ICalEvent {
   uid: string;
@@ -24,6 +27,8 @@ export interface ParsedICalData {
   isHyperplanning: boolean;
   provider?: string;
   url?: string;
+  isSchool?: boolean;
+  schoolName?: string;
 }
 
 const cacheDir = new Directory(Paths.cache, 'ical_cache');
@@ -100,7 +105,9 @@ export async function getICalEventsForWeek(weekStart: Date, weekEnd: Date, force
         icalTitle: ical.title,
         isADE: parsedData.isADE,
         isHyperplanning: parsedData.isHyperplanning,
-        intelligentParsing: (ical as any).intelligentParsing || false
+        intelligentParsing: (ical as any).intelligentParsing || false,
+        isSchool: parsedData.isSchool,
+        schoolName: parsedData.schoolName
       });
 
       allEvents.push(...convertedEvents);

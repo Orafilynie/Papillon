@@ -128,6 +128,16 @@ export function GetSupportedUniversities(redirect: (path: { pathname: string, op
 
   return [
     {
+      name: "iut-lannion",
+      title: "IUT de Lannion",
+      hasLimitedSupport: false,
+      image: require("@/assets/images/univ_lannion.png"),
+      type: "main",
+      onPress: () => {
+        redirect({ pathname: './lannion/credentials' });
+      },
+    },
+    {
       name: "univ-lorraine",
       title: "Université de Lorraine",
       hasLimitedSupport: false,
@@ -155,16 +165,6 @@ export function GetSupportedUniversities(redirect: (path: { pathname: string, op
       type: "main",
       onPress: () => {
         redirect({ pathname: './multi/credentials', options: { color: "#008DB0", university: "UPHF", url: "https://appmob.uphf.fr/backend" } });
-      },
-    },
-    {
-      name: "iut-lannion",
-      title: "IUT de Lannion",
-      hasLimitedSupport: false,
-      image: require("@/assets/images/univ_lannion.png"),
-      type: "main",
-      onPress: () => {
-        redirect({ pathname: './lannion/credentials' });
       },
     },
     {
